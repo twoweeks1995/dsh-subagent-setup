@@ -1,0 +1,7 @@
+node_modules/
+*.tgz
+*.log
+out/
+.dsh-backups/
+.tmp*/
+config.local.json

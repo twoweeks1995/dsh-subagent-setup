@@ -1,0 +1,18 @@
+# dsh-subagent-setup 的 bundle patch：把插件的两个条目插入名册。
+#
+# 分工一句话：**主+设置条目给模型和设置页用，会话条目给会话头部两个组件用。**
+#   主+设置 subagent-setup          → 五个工具、系统提示路由清单、技能、tracker；/settings、/catalog 两条 HTTP 路由
+#   会话   subagent-setup-session   → /subagent-model、/close-subagent（含 GET 可用性探针）两条 HTTP 路由
+#   客户端那半 client.js 是包级界面画布，不属于任何条目，数据分别走两个条目。
+#
+# 为什么拆：停用「会话」条目只影响会话头部两个组件（路由胶囊、终止按钮），
+# 设置页完全不受影响。
+#
+# 与上游 dsh-subagent-model-router 的关键差别：**这里不带 config**。
+# 路由配置存在 <DSH_HOME>/subagent-setup/config.json，由插件自己读写，
+# 不经过 Cordis patch（也就不存在 YAML 拼接、误删 insert 块、BOM 这类问题）。
+- insert:
+    - id: subagent-setup
+      name: 'dsh-subagent-setup'
+    - id: subagent-setup-session
+      name: 'dsh-subagent-setup/session'

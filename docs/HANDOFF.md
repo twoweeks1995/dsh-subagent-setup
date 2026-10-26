@@ -199,11 +199,31 @@ tags/effort 只在选定后决定参数，且不得拿推理档位当选路理�
 - ⚠️ **上游能用是因为被手工 patch 过**：`profiles\desktop\node_modules\dsh-subagent-model-router\lib\index.js`
   里的 `start/startContinuable` 已被改成 `startActivation`（见 `notes\subagent-model-router-0.2.1.md`）。
   该 patch 在 `node_modules` 内，**重装或升级插件即失效**，需要重打。上游未修复此问题。
-- Node / pnpm：`D:\DSH-Home\dsh-runtimes\dsh-primary-runtime\dependencies\{node\bin\node.exe,pnpm\bin\pnpm.cjs}`
+- Node / pnpm：`D:\DSH-Home\dsh-runtimes\dsh-primary-runtime\dependencies\{node\bin\node.exe,pnpm\bin\pnpm.mjs}`
 - `gh` 已登录 `twoweeks1995`（scopes: `read:org`, `repo` — **没有 `workflow`**，
   若以后加 GitHub Actions 需要 `gh auth refresh -s workflow`）
 - npm 身份 `twoweeks1995`，已发布 `dsh-appdata-scanner@0.7.0`
 - 既有插件源码参考（**不要修改**）：`E:\DeepSeek\appdata-scanner`（`src/` 纯逻辑 + `plugin/` 胶水的目录约定就来自它）
+
+### 8.1 兼容性：只在 0.2.1-rc.2 上验证过
+
+`package.json` 声明 `dsh.engines.dsh: ">=0.2.1-rc.2"`、`engines.node: ">=20"`。
+**除本机这一个版本外，没有在任何旧版 DSH 上实测过**，宿主是否强制检查 `dsh.engines` 也未验证。
+
+代码里做了降级，但要分清「不崩」和「能用」：
+
+| 依赖 | 旧版缺它时 |
+|---|---|
+| `subagents.startActivation` | 探测到没有就回落 `start` / `startContinuable`（legacy 路径有单测） |
+| `sessionQuery` | 回落到 `agents.get`，**只能读到仍在内存里的子代理**；已结束的会话读不到路由 |
+| `agentPreset` 能力 | 能力探测拦截，带 `agentPreset` 的路由报错，其余路由不受影响 |
+| `webServer` | 界面条目整条不加载（设置页、胶囊、按钮全无），主条目与工具照常 |
+| 客户端槽位 `settings.section`、`conversation.session.header.actions` | 组件静默不渲染，工具不受影响 |
+| `dsh.bundle.patch` + `dsh.client` | 这是插件管理器时代的 manifest 约定；太老的宿主可能压根装不上 |
+
+**结论**：老版本能否用，取决于它如何提供上面这几项——没有试过就不能承诺。
+真要支持旧版，最省事的判断方式是装上去看 `last-startup.log`：它逐行记录 tracker / wait / close /
+sessionQuery / webServer / 能力的探测结果，缺什么一目了然。
 
 ## 9. 验证与发布
 
@@ -214,16 +234,42 @@ cd E:\DeepSeek\dsh-subagent-setup
 & "<node>" --check plugin/session.mjs
 ```
 
-发布（等 v0.2 可用后）：
+### 9.1 已经发布（2026-10-26，v0.2.0）
+
+| 渠道 | 位置 | 状态 |
+|---|---|---|
+| npm | https://www.npmjs.com/package/dsh-subagent-setup | `0.2.0` 为 latest，26 个文件 / 解开 169 KB |
+| GitHub | https://github.com/twoweeks1995/dsh-subagent-setup | 40 个文件，tag `v0.2.0` |
+| Release | …/releases/tag/v0.2.0 | 挂了 `dsh-subagent-setup-0.2.0.tgz`（49,904 B） |
+
+发布时踩到的两件事，下次照抄：
+
+1. **`github.com:443` 可能不通，但 `api.github.com` / `uploads.github.com` 通**。
+   此时 `git push` 会 21 秒超时。替代方案：用 Git Data API 写入（blobs → tree → commit → ref），
+   再用 `gh release create` 上传 tgz。注意**空仓库不允许创建 blob**（`409 Git Repository is empty`），
+   必须先用 Contents API（`PUT /contents/<path>`）建出第一个提交。
+2. **npm 首次发布会走暂存（staged）**，线上先出现一个 `0.0.0-stage` 占位包，
+   过一会儿正式版本才生效；`npm stage approve` 需要 2FA，命令行拿不到口令，等即可。
+
+### 9.2 如果本地/远程历史又不一致
+
+用 API 写入会产生与本地不同的提交哈希（内容相同）。网络恢复后一条命令对齐：
 
 ```powershell
-gh repo create twoweeks1995/dsh-subagent-setup --public --source . --remote origin
-git add -A; git commit -m "feat: 0.2.0 委派工具"; git tag v0.2.0; git push origin main --tags
-# 三台机器安装：
-dsh plugin --profile desktop add github:twoweeks1995/dsh-subagent-setup#v0.2.0
+git fetch origin
+git reset --hard origin/main
+git tag -f v0.2.0 origin/main
 ```
 
-npm 发布可选（`pnpm publish`），上游没发 npm、只走 GitHub。
+（本次已于 2026-10-26 修复：本地 HEAD 与远程 `a6718ec` 一致，tag 已在。）
+
+### 9.3 今后发布
+
+```powershell
+pnpm publish --access public        # npm
+git push origin main --tags         # GitHub（打包会用 pnpm pack）
+gh release create v0.2.1 ./dsh-subagent-setup-0.2.1.tgz --title v0.2.1
+```
 
 ## 10. 一句话给新会话
 

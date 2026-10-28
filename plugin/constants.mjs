@@ -12,7 +12,7 @@ export const SECTION_NAME = 'tool:subagent-route:models'
 export const SECTION_ORDER = 116.25
 export const SKILL_NAME = 'subagent-route-setup'
 
-export const MODEL_ROUTE_BASE_GUIDANCE = `For model-routed delegation, use \`${DELEGATION_TOOL_NAME}\` and choose \`model\` only from the configured routes below.
+export const MODEL_ROUTE_BASE_GUIDANCE = `For model-routed delegation, use \`${DELEGATION_TOOL_NAME}\` and choose \`model\` only from the routes listed in that tool's description.
 
 How to choose, in this order:
 1. Match the task against a route's description. The description is the ONLY routing criterion: it states when that route applies, so a route whose stated condition the task does not meet is not a candidate, however attractive its other attributes.

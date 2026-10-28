@@ -15,10 +15,7 @@
  * 本文件不 import DSH 实体，无法像上游那样用 carrierKeyOf(this) 反查父代理；
  * childId 全局唯一，track() 按 childId 消费即可。
  */
-
-function errorMessage(error) {
-  return error instanceof Error ? error.message : String(error)
-}
+import { errorMessage } from './util.mjs'
 
 function abortError(signal) {
   const error = new Error('aborted')

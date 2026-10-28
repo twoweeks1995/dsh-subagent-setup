@@ -1,7 +1,7 @@
 # 交接文档（HANDOFF）
 
 > 新会话接手时**先读这一页**，再按需读 `DESIGN.md` / `analysis.md`。
-> 项目：`E:\DeepSeek\dsh-subagent-setup`　上游参考：`E:\DeepSeek\upstream-dsh-subagent-model-router`
+> 项目：`E:\DeepSeek\dsh-subagent-setup`　上游参考：`reference/upstream-model-router-0.10.0.zip`（已归档，不入库）
 
 ---
 
@@ -180,8 +180,10 @@ tags/effort 只在选定后决定参数，且不得拿推理档位当选路理�
 ## 7. 已知的坑（都是真踩过的）
 
 | 坑 | 现象 | 规避 |
-| **客户端拆文件** | 手写 CJS bundle 里 `require('./x.js')` 报 `client-modules: … missed the module table — not a platform seed word, not a materialized module, and no registered package factory` | 宿主客户端模块表只认**平台种子 / 已物化模块 / 注册过的包工厂**，不做路径解析。`client.js` 只能保持单文件；真要拆必须迁移到 director 那种 ESM 多文件约定（由构建期物化） |
 |---|---|---|
+| **systemPrompt 段落对子代理不可见** | 用 `ctx.systemPrompt.section()` 注入的系统提示段，**子代理完全收不到**——连 DSH 自己的 `harness:identity`（"You are an AI agent powered by DeepSeek Harness."）都没有；子代理拿到的是一份精简提示 | 给模型看的路由清单必须写进**工具描述**（工具描述一定随工具下发）。实测：写进工具描述后，子代理能原样抄出每条路由的描述 |
+| **section 的 text 必须是字符串** | 传函数不会报错，但宿主 `renderPrompt` 直接对 `text` 调 `.indexOf()`，段落等于失效（且静默） | `text` 用字符串；清单变化时先 dispose 再重新 `section()` 注册 |
+| **客户端拆文件** | 手写 CJS bundle 里 `require('./x.js')` 报 `client-modules: … missed the module table — not a platform seed word, not a materialized module, and no registered package factory` | 宿主客户端模块表只认**平台种子 / 已物化模块 / 注册过的包工厂**，不做路径解析。`client.js` 只能保持单文件；真要拆必须迁移到 director 那种 ESM 多文件约定（由构建期物化） |
 | **UTF-8 BOM** | PowerShell `Set-Content -Encoding UTF8` 写 JSON 带 BOM → Node `JSON.parse` 抛错 → **DSH 起不来** | 只用 `[IO.File]::WriteAllText(..., UTF8Encoding($false))`；写完检查前 3 字节 |
 | **`Get-Content` 编码** | PS 5.1 的 `Get-Content` 默认按 GBK 读 UTF-8 文件 → 中文变 `涓枃鐣岄溃`，`ConvertFrom-Json` 报错 | 验证时用 `[IO.File]::ReadAllText` 或 Node；别用裸 `Get-Content` |
 | **YAML 正则太贪** | 替换配置条目时吃到下一个 `- id:` 或文件尾，吞掉中间 `- insert:` 块 → DSH 起不来 | 本插件不碰 YAML |
@@ -189,25 +191,25 @@ tags/effort 只在选定后决定参数，且不得拿推理档位当选路理�
 | **工具重名** | Cordis 同作用域内同名注册失败 | 与上游共存时用不同工具名/技能名 |
 | **profile `package.json` 决定启动** | 它坏了整个应用打不开（比功能失效更严重） | 不要手改；必须改时校验 JSON 可解析且无 BOM |
 
-事故完整过程见 `E:\DeepSeek\dsh-subagent-router\README.md` 的「4.1 事故记录」。
+事故完整过程见 `reference/legacy-dsh-subagent-router.zip` 里 `README.md` 的「4.1 事故记录」。
 
 ## 8. 环境
 
-- DSH 桌面版 **0.2.1-rc.2**；`DSH_HOME = D:\DSH-Home`；profile `desktop`
-- 上游插件**已安装并在用**（四条路由：`v4pro` / `gpt61sol` / `glm53flash` / `gemini38flash`）
-  → 我们的插件要和它**并存测试**，所以工具名、技能名必须错开
-- ⚠️ **上游能用是因为被手工 patch 过**：`profiles\desktop\node_modules\dsh-subagent-model-router\lib\index.js`
-  里的 `start/startContinuable` 已被改成 `startActivation`（见 `notes\subagent-model-router-0.2.1.md`）。
-  该 patch 在 `node_modules` 内，**重装或升级插件即失效**，需要重打。上游未修复此问题。
+- DSH 桌面版 **0.2.1-rc.3**（2026-10-28 实读 asar 确认；开发起始于 rc.2）；`DSH_HOME = D:\DSH-Home`；profile `desktop`
+- 上游 `dsh-subagent-model-router` 与 `dsh-plugin-subagent-director` **均已卸载**；
+  本机只装本插件一套，工具名/技能名不再需要避让
+- 四条路由描述文案的原始依据（能力实测 2026-10-22、后续四轮与定稿标签）归档在
+  `reference/route-capability-evidence.md`（不入库）。早先为上游打的 `startActivation` 补丁说明已删除——
+  上游已卸载，补丁无对象可施。
 - Node / pnpm：`D:\DSH-Home\dsh-runtimes\dsh-primary-runtime\dependencies\{node\bin\node.exe,pnpm\bin\pnpm.mjs}`
 - `gh` 已登录 `twoweeks1995`（scopes: `read:org`, `repo` — **没有 `workflow`**，
   若以后加 GitHub Actions 需要 `gh auth refresh -s workflow`）
 - npm 身份 `twoweeks1995`，已发布 `dsh-appdata-scanner@0.7.0`
 - 既有插件源码参考（**不要修改**）：`E:\DeepSeek\appdata-scanner`（`src/` 纯逻辑 + `plugin/` 胶水的目录约定就来自它）
 
-### 8.1 兼容性：只在 0.2.1-rc.2 上验证过
+### 8.1 兼容性：只在 0.2.1-rc.3 上验证过
 
-`package.json` 声明 `dsh.engines.dsh: ">=0.2.1-rc.2"`、`engines.node: ">=20"`。
+`package.json` 声明 `dsh.engines.dsh: ">=0.2.1-rc.3"`、`engines.node: ">=20"`。
 **除本机这一个版本外，没有在任何旧版 DSH 上实测过**，宿主是否强制检查 `dsh.engines` 也未验证。
 
 代码里做了降级，但要分清「不崩」和「能用」：
@@ -271,15 +273,16 @@ git push origin main --tags         # GitHub（打包会用 pnpm pack）
 gh release create v0.2.1 ./dsh-subagent-setup-0.2.1.tgz --title v0.2.1
 ```
 
-### 9.4 下次发版时要加进 README 的两段（已写好，暂不发布）
+### 9.4 已写入本地 README、随下个版本一起发布的两段
 
-规矩：**README 只随版本发布更新**，README 一改 GitHub 就和 npm 不一致了；
-所以文档级改动先攒着，等有实质改动要发版时一起提交。
+规矩：**只需要保证 GitHub 与 npm 一致**，本地工作区随便改、随便脏。
+下面两段**已经写进本地 `README.md`（尚未提交）**，等有实质改动要发版时，
+连版本号一起提交、发布，GitHub 与 npm 同时生效。
 
 **① 放在「安装」小节末尾：**
 
 ```markdown
-> 开发与验证环境：**DSH 桌面版 0.2.1-rc.2**、Node ≥ 20。更早的 DSH 版本没有实测过；
+> 开发与验证环境：**DSH 桌面版 0.2.1-rc.3**（开发起始于 rc.2）、Node ≥ 20。更早的 DSH 版本没有实测过；
 > 若装到旧版本上，可查看 `<DSH_HOME>/subagent-setup/last-startup.log`，里面逐行记录了
 > 各项能力（tracker / wait / close / sessionQuery / webServer）的探测结果，缺什么一目了然。
 ```

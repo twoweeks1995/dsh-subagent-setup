@@ -1,7 +1,7 @@
 # dsh-subagent-model-router 源码分析（重写依据）
 
 - 分析对象：`pumbleblock/dsh-subagent-model-router`，版本 **0.10.0**（MIT）
-- 上游快照：`E:\DeepSeek\upstream-dsh-subagent-model-router`（从 `codeload` 拉取的 `main` 分支 tar.gz，445 KB）
+- 上游快照：`reference/upstream-model-router-0.10.0.zip`（原为从 `codeload` 拉取的 `main` 分支 tar.gz）
 - 目的：判断"参考它重写一个更贴合我们习惯的版本"的代价与切入点
 
 ---

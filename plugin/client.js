@@ -51,6 +51,8 @@ window.__ModuleLoader__.load({
       primaryButton: { minHeight: 36, padding: '0 16px', border: 0, borderRadius: 18, background: 'var(--dsw-alias-button-primary-fill)', color: 'var(--dsw-alias-label-primary-foreground)', cursor: 'pointer', font: 'inherit' },
       dangerButton: { minHeight: 32, padding: '0 11px', border: '1px solid var(--dsw-alias-state-error-primary)', borderRadius: 16, background: 'transparent', color: 'var(--dsw-alias-state-error-primary)', cursor: 'pointer', font: 'inherit' },
       smallButton: { minHeight: 28, padding: '0 10px', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 14, background: 'transparent', color: 'var(--dsw-alias-label-primary)', cursor: 'pointer', font: 'inherit', fontSize: 12 },
+      // 会话头部空间窄，按钮与旁边胶囊同高（24px），不再用表单里那套 32px 的大按钮
+      closeActionButton: { minHeight: 24, padding: '0 10px', border: '1px solid var(--dsw-alias-state-error-primary)', borderRadius: 12, background: 'transparent', color: 'var(--dsw-alias-state-error-primary)', cursor: 'pointer', font: 'inherit', fontSize: 12, lineHeight: '18px', whiteSpace: 'nowrap' },
       error: { margin: 0, color: 'var(--dsw-alias-state-error-primary)', fontSize: 13 },
       success: { margin: 0, color: 'var(--dsw-alias-state-success-primary)', fontSize: 13 },
       checkbox: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 },
@@ -66,14 +68,12 @@ window.__ModuleLoader__.load({
       caret: { flex: 'none', color: 'var(--dsw-alias-label-tertiary)', fontSize: 12 },
       dropdownPanel: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 },
       inlineError: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-      routeDock: { display: 'flex', alignItems: 'center', gap: 6, margin: 0 },
-      routeDockRef: { margin: 0, color: 'var(--dsw-alias-label-tertiary)', fontSize: 12, lineHeight: '18px', fontFamily: 'monospace', fontWeight: 600 },
+
       optionList: { display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 220, overflow: 'auto', padding: 4, border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 8 },
       optionRow: { boxSizing: 'border-box', width: '100%', minHeight: 32, padding: '5px 8px', border: 0, borderRadius: 6, background: 'transparent', color: 'var(--dsw-alias-label-primary)', textAlign: 'left', cursor: 'pointer', font: 'inherit', fontSize: 13, lineHeight: '18px' },
       optionRowSelected: { background: 'var(--dsw-alias-bg-layer-1)', fontWeight: 600 },
       routeChip: { display: 'inline-flex', alignItems: 'center', padding: '2px 9px', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 11, background: 'transparent', color: 'var(--dsw-alias-label-tertiary)', font: 'inherit', fontSize: 12, lineHeight: '18px', whiteSpace: 'nowrap' },
-      manualBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '2px 0 2px' },
-    otherRow: { boxSizing: 'border-box', width: '100%', minHeight: 32, padding: '5px 8px', border: '1px dashed var(--dsw-alias-border-l2)', borderRadius: 6, background: 'transparent', color: 'var(--dsw-alias-label-secondary)', textAlign: 'left', cursor: 'pointer', font: 'inherit', fontSize: 13 },
+      otherRow: { boxSizing: 'border-box', width: '100%', minHeight: 32, padding: '5px 8px', border: '1px dashed var(--dsw-alias-border-l2)', borderRadius: 6, background: 'transparent', color: 'var(--dsw-alias-label-secondary)', textAlign: 'left', cursor: 'pointer', font: 'inherit', fontSize: 13 },
     }
 
     function messageOf(error) {
@@ -840,8 +840,8 @@ window.__ModuleLoader__.load({
           type: 'button',
           // 破坏性动作：用红色描边+红字，与界面里其它危险操作一致，也更容易被看见
           style: state === 'closing'
-            ? { ...styles.dangerButton, opacity: 0.6, cursor: 'default' }
-            : styles.dangerButton,
+            ? { ...styles.closeActionButton, opacity: 0.6, cursor: 'default' }
+            : styles.closeActionButton,
           disabled: state === 'closing',
           onClick: () => { void onClose() },
         }, state === 'closing' ? '释放中…' : '终止可持续状态'),

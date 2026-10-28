@@ -33,6 +33,18 @@ function makeSignal() {
   return { aborted: false }
 }
 
+// 宿主的 systemPrompt.section 只接受字符串 text；清单变化时会重新注册，
+// 所以测试每次都要取**最后一个**同名段，而不是 find 到的第一个。
+const sectionOf = (ctx) => {
+  const list = ctx.state.sections.filter((entry) => entry.name === 'tool:subagent-route:models')
+  return list[list.length - 1]
+}
+const sectionText = (ctx) => {
+  const section = sectionOf(ctx)
+  if (section === undefined) return undefined
+  return typeof section.text === 'function' ? section.text({ scope: makeParent() }) : section.text
+}
+
 function makeParent(turns = 0) {
   const events = Array.from({ length: turns }, () => ({ type: 'user/message', data: { source: { kind: 'user' } } }))
   return {
@@ -331,8 +343,7 @@ test('tracker/wait 不可用时强制前台且不暴露 run_in_background', asyn
   assert.equal(calls.length, 1)
   assert.equal(calls[0].delivery, 'caller')
 
-  const section = ctx.state.sections.find((entry) => entry.name === 'tool:subagent-route:models')
-  const text = section.text({ scope: makeParent() })
+  const text = sectionText(ctx)
   assert.ok(!text.includes('subagent_route_wait'), 'wait 不可用时提示不得指向不存在的工具')
   assert.ok(text.includes('- fast: Fast (acme/acme-fast)'), '路由清单照常保留')
 })
@@ -418,10 +429,10 @@ test('委派工具未挂载时 systemPrompt 文本为空串', async (t) => {
   const ctx = makeCtx({ subagents: activationSubagents().subagents })
   await plugin.apply(ctx)
 
-  const section = ctx.state.sections.find((entry) => entry.name === 'tool:subagent-route:models')
+  const section = sectionOf(ctx)
   assert.ok(section)
   assert.equal(section.order, 116.25)
-  assert.equal(section.text({ scope: makeParent() }), '')
+  assert.equal(sectionText(ctx), '')
 })
 
 test('委派工具挂载时 systemPrompt 文本含指引与路由清单', async (t) => {
@@ -429,8 +440,7 @@ test('委派工具挂载时 systemPrompt 文本含指引与路由清单', async 
   const ctx = makeCtx({ subagents: activationSubagents().subagents })
   await plugin.apply(ctx)
 
-  const section = ctx.state.sections.find((entry) => entry.name === 'tool:subagent-route:models')
-  const text = section.text({ scope: makeParent() })
+  const text = sectionText(ctx)
   assert.match(text, /subagent_route_wait/)
   assert.ok(text.includes('- fast: Fast (acme/acme-fast)'))
 })
@@ -503,8 +513,7 @@ test('设置页 PUT 保存新别名后，systemPrompt 与 subagent_route 立即�
   })
   assert.equal(statusCode, 200)
 
-  const section = ctx.state.sections.find((entry) => entry.name === 'tool:subagent-route:models')
-  assert.ok(section.text({ scope: makeParent() }).includes('slow'), 'PUT 后 systemPrompt 立即包含新别名')
+  assert.ok(sectionText(ctx).includes('slow'), 'PUT 后 systemPrompt 立即包含新别名')
 
   const tool = ctx.tools.get('subagent_route')
   assert.ok(tool.parameters.properties.model.description.includes('slow'))
@@ -550,12 +559,11 @@ test('人工直接改 config.json 后，新别名无需重启即可委派（enum
     },
   )
 
-  const section = ctx.state.sections.find((entry) => entry.name === 'tool:subagent-route:models')
   for (let i = 0; i < 20; i += 1) {
-    if (section.text({ scope: makeParent() }).includes('slow')) break
+    if (sectionText(ctx).includes('slow')) break
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
-  assert.ok(section.text({ scope: makeParent() }).includes('slow'), '委派后 reconcile 追上人工编辑的新别名')
+  assert.ok(sectionText(ctx).includes('slow'), '委派后 reconcile 追上人工编辑的新别名')
 })
 
 test('委派时配置读取失败给出含路径的中文错误', async (t) => {

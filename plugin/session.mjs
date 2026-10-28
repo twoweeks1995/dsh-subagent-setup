@@ -9,29 +9,13 @@
  * 为什么拆：停用本条目时，会话头部胶囊与终止按钮拿不到接口数据、静默消失，
  * 设置页（主+设置条目）完全不受影响。
  */
-import { errorMessage } from './util.mjs'
+import { errorMessage, resolveWebServer } from './util.mjs'
 import { createStartupRecorder, stackHead } from './startup-log.mjs'
 import { closeSubagent, readSubagentModel } from './session-observe.mjs'
 import { createSessionRoutes } from './routes.mjs'
 
 export const name = 'subagent-setup-session'
 export const inject = ['webServer', 'subagents', 'agents', 'llm']
-
-/**
- * 取 webServer 服务。ctx.get() 是主路径；某些 cordis 版本对未 inject 的服务
- * 只允许属性访问，故补一条回退（失败不算错，说明服务不存在）。
- */
-function resolveWebServer(ctx) {
-  try {
-    const viaGet = ctx.get('webServer')
-    if (viaGet !== undefined) return viaGet
-  } catch { /* 回退到属性访问 */ }
-  try {
-    return ctx.webServer
-  } catch {
-    return undefined
-  }
-}
 
 export async function apply(ctx) {
   const logger = ctx.logger ?? { info() {}, warn() {}, error() {} }

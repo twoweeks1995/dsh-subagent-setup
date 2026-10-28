@@ -1,6 +1,6 @@
 {
   "name": "dsh-subagent-setup",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "给 DeepSeek Harness 的子智能体模型路由：按别名把子智能体委派到指定的子智能体代理与模型，支持标签、默认思考档位与界面开关；配置存本地 JSON，不写 YAML。",
   "type": "module",
   "main": "plugin/index.js",
@@ -19,7 +19,7 @@
   },
   "dsh": {
     "engines": {
-      "dsh": ">=0.2.1-rc.2"
+      "dsh": ">=0.2.1-rc.3"
     },
     "bundle": {
       "patch": "./plugin/cordis.patch.yml"

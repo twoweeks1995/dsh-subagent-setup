@@ -46,19 +46,7 @@ import { agentPresetBlockReason, capabilityKeys, settleForegroundRun } from './d
 import { createStartupRecorder, stackHead } from './startup-log.mjs'
 import { createSettingsRoutes } from './routes.mjs'
 import { createCatalogTool, createCloseSubagentTool, createConfigureTool } from './tools.mjs'
-import { errorMessage } from './util.mjs'
-
-function resolveWebServer(ctx) {
-  try {
-    const viaGet = ctx.get('webServer')
-    if (viaGet !== undefined) return viaGet
-  } catch { /* 回退到属性访问 */ }
-  try {
-    return ctx.webServer
-  } catch {
-    return undefined
-  }
-}
+import { errorMessage, resolveWebServer } from './util.mjs'
 
 export const name = 'subagent-setup'
 export const inject = ['tools', 'subagents', 'agents', 'systemPrompt', 'skills', 'llm', 'webServer']
@@ -71,6 +59,7 @@ export async function apply(ctx) {
 
   let snapshot = null
   let disposeDelegation
+  let disposeSection
   let mountedModels = []
   let tracker
   let waitToolAvailable = false
@@ -85,6 +74,7 @@ export async function apply(ctx) {
     }
     disposeDelegation = undefined
     mountedModels = []
+    syncSection()
   }
 
   const providerReady = (name) => {
@@ -122,14 +112,23 @@ export async function apply(ctx) {
     const backgroundEnabled = settings.enableRunInBackground === true && waitToolAvailable
     const tool = {
       name: DELEGATION_TOOL_NAME,
-      description: 'Delegate a self-contained task to a subagent on a configured model route. Choose `model` only from the routes listed in the `tool:subagent-route:models` system prompt section, the single source of truth for available routes and their routing roles. `description` is a short display label. A foreground run waits for the child output; a background run returns a durable subagent id immediately.',
+      // 子代理拿不到 plugin 注册的 systemPrompt 段落（实测连 DSH 自己的 harness:identity 都没有），
+      // 但工具描述一定可见，所以路由清单必须写在这里，否则子代理只能靠猜或额外调用 configure。
+      description: [
+        MODEL_ROUTE_BASE_GUIDANCE,
+        '',
+        'Configured routes (choose `model` from these aliases only):',
+        renderConfiguredModels(settings.models, undefined),
+        '',
+        '`description` is a short display label. A foreground run waits for the child output; a background run returns a durable subagent id immediately.',
+      ].join('\n'),
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
           model: {
             type: 'string',
-            description: 'Configured model alias. Available aliases: ' + aliases.join(', ') + '. Choose only from the routes listed in the `tool:subagent-route:models` system prompt section.',
+            description: 'Configured model alias. Available aliases: ' + aliases.join(', ') + '. Choose only from the routes listed in this tool description.',
           },
           prompt: {
             type: 'string',
@@ -267,8 +266,30 @@ export async function apply(ctx) {
       mountedModels = settings.models
       registeredToolNames.push(DELEGATION_TOOL_NAME)
       logger.info(`[subagent-setup] subagent_route 已注册（${mountedModels.length} 条别名：${mountedModels.map((entry) => entry.alias).join(', ')}）`)
+      syncSection()
     } catch (error) {
       logger.error(`[subagent-setup] subagent_route 注册失败：${errorMessage(error)}`)
+    }
+  }
+
+  /**
+   * 重新注册路由清单段。
+   * 宿主只接受**字符串**形式的 text——传函数不会被调用，段落会整个消失（实测子代理看不到清单）。
+   * 因此清单或工具可用性变化时，拆掉旧的、用新字符串重注册。
+   */
+  function syncSection() {
+    if (typeof ctx.systemPrompt?.section !== 'function') return
+    if (disposeSection !== undefined) {
+      try { disposeSection() } catch (error) { logger.warn(`[subagent-setup] 路由清单段卸载失败：${errorMessage(error)}`) }
+      disposeSection = undefined
+    }
+    const ready = disposeDelegation !== undefined && mountedModels.length > 0
+    const waitGuidance = ready && waitToolAvailable ? ` ${MODEL_ROUTE_WAIT_GUIDANCE}` : ''
+    const text = ready ? `${MODEL_ROUTE_BASE_GUIDANCE}${waitGuidance}\n${renderConfiguredModels(mountedModels, undefined)}` : ''
+    try {
+      disposeSection = ctx.systemPrompt.section({ name: SECTION_NAME, order: SECTION_ORDER, text })
+    } catch (error) {
+      logger.error(`[subagent-setup] 路由清单段注册失败：${errorMessage(error)}`)
     }
   }
 
@@ -283,6 +304,8 @@ export async function apply(ctx) {
       }
       unmountDelegation()
       mountDelegation()
+      // 即使这次没有任何增删（例如 models 为空），也要保证清单段与当前状态一致。
+      syncSection()
     }
     reconcileChain = reconcileChain.then(run, run)
     return reconcileChain
@@ -317,16 +340,7 @@ export async function apply(ctx) {
     return { ...result, value, content: Array.isArray(rendered) ? rendered : result.content }
   })
 
-  ctx.systemPrompt?.section({
-    name: SECTION_NAME,
-    order: SECTION_ORDER,
-    text: (context) => {
-      if (disposeDelegation === undefined) return ''
-      if (ctx.tools?.get?.(DELEGATION_TOOL_NAME, context?.scope) === undefined) return ''
-      const waitGuidance = ctx.tools?.get?.(WAIT_TOOL_NAME, context?.scope) === undefined ? '' : ` ${MODEL_ROUTE_WAIT_GUIDANCE}`
-      return `${MODEL_ROUTE_BASE_GUIDANCE}${waitGuidance}\n${renderConfiguredModels(mountedModels, undefined)}`
-    },
-  })
+  // 路由清单段由 syncSection() 注册（宿主只接受字符串 text，函数形式不会生效）。
 
   if (ctx.tools?.register) {
     const disposeCatalog = ctx.tools.register(createCatalogTool(ctx))

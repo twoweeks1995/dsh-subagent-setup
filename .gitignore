@@ -3,5 +3,9 @@ node_modules/
 *.log
 out/
 .dsh-backups/
-.tmp*/
+.tmp*
+!/.tmp-keep
 config.local.json
+
+# 不推送的参考资料（上游插件、前身项目的归档）
+reference/

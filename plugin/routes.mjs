@@ -14,16 +14,14 @@
  * 写路径（读 revision → 比对 → 写入）通过 createSettingsRoutes 内部的 Promise 链串行化，
  * 避免两个并发 PUT 都读到旧 revision、双双写盘互相覆盖。
  */
+import { errorMessage } from './util.mjs'
+
 const NAMESPACE = 'subagent-setup'
 const SETTINGS_PATH = '/dsh-subagent-setup/settings'
 const CATALOG_PATH = '/dsh-subagent-setup/catalog'
 const SUBAGENT_MODEL_PATH = '/dsh-subagent-setup/subagent-model'
 const CLOSE_SUBAGENT_PATH = '/dsh-subagent-setup/close-subagent'
 const BODY_LIMIT = 256 * 1024
-
-function errorMessage(error) {
-  return error instanceof Error ? error.message : String(error)
-}
 
 function sendJson(res, statusCode, value) {
   const body = JSON.stringify(value)
@@ -331,9 +329,3 @@ export function createSessionRoutes({ readSubagentModel, closeSubagent }) {
   ]
 }
 
-export function createRoutes({ readConfig, writeConfig, readCatalog, readSubagentModel, closeSubagent }) {
-  return [
-    ...createSettingsRoutes({ readConfig, writeConfig, readCatalog }),
-    ...createSessionRoutes({ readSubagentModel, closeSubagent }),
-  ]
-}

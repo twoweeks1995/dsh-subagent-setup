@@ -5,7 +5,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 
-import { createRoutes } from '../plugin/routes.mjs'
+import { createSettingsRoutes, createSessionRoutes } from '../plugin/routes.mjs'
+
+// 生产代码不再提供合并包装：两个条目各自注册自己的路由，测试里合并成一份列表即可。
+const createRoutes = (deps) => [...createSettingsRoutes(deps), ...createSessionRoutes(deps)]
 import { configPath, readSettings, writeSettings } from '../src/store.mjs'
 
 const SETTINGS_PATH = '/dsh-subagent-setup/settings'
